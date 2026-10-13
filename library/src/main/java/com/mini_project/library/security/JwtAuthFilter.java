@@ -1,0 +1,49 @@
+package com.mini_project.library.security;
+
+import com.mini_project.library.repository.AppUserRepository;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.List;
+
+/**
+ * Authenticates requests carrying a bearer token. The user is re-loaded on every
+ * request so removed staff lose access immediately, even with an unexpired token.
+ */
+public class JwtAuthFilter extends OncePerRequestFilter {
+
+    private final JwtService jwtService;
+    private final AppUserRepository userRepository;
+
+    public JwtAuthFilter(JwtService jwtService, AppUserRepository userRepository) {
+        this.jwtService = jwtService;
+        this.userRepository = userRepository;
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+
+        if (header != null && header.startsWith("Bearer ")) {
+            jwtService.parseUserId(header.substring(7))
+                    .flatMap(userRepository::findWithOrganizationById)
+                    .map(AuthUser::from)
+                    .ifPresent(user -> {
+                        var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.role().name()));
+                        var auth = new UsernamePasswordAuthenticationToken(user, null, authorities);
+                        SecurityContextHolder.getContext().setAuthentication(auth);
+                    });
+        }
+
+        chain.doFilter(request, response);
+    }
+}
