@@ -1,4 +1,4 @@
-# Shelfwise — Library Management SaaS
+# Library Management SaaS
 
 A multi-tenant library management app built with **Spring Boot**. Any library can sign up and get its own
 private workspace with a catalog, members, loans and a staff team. Each workspace's data is isolated
